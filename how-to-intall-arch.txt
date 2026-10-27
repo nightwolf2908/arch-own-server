@@ -1,0 +1,141 @@
+Paso 1. Verificar el modo de arranque
+
+ls /sys/firmware/efi/efivars
+
+Hay dos resultados posibles:
+- UEFI: aparece una lista de archivos.
+- BIOS Legacy: aparece un mensaje indicando que el directorio no existe.
+Esto determinará cómo vamos a configurar las particiones y el gestor de arranque.
+
+Paso 2. Identificar el disco virtual
+
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+
+Paso 3. Verificar la hora
+
+timedatectl 
+
+Comprueba que aparezca System clock synchronized: yes. La sincronización es importante para instalar paquetes correctamente.
+
+Paso 4. Particionar el disco virtual (BIOS)
+
+Partición	Tamaño	Sistema
+/dev/vda1	2 GB	Linux swap
+/dev/vda2	~38 GB	Linux ext4, raíz /
+
+cfdisk /dev/vda
+
+Si te pregunta qué tipo de tabla de particiones deseas utilizar, selecciona: dos (MBR)
+
+4.2 Crear la partición SWAP
+Dentro de cfdisk:
+1. Selecciona New.
+2. Escribe 2G.
+3. Selecciona Type.
+4. Escoge Linux swap.
+
+4.3 Crear la partición principal
+Selecciona el espacio libre restante:
+1. Selecciona New.
+2. Acepta todo el espacio disponible.
+3. Deja el tipo Linux.
+4. Selecciona Bootable para marcarla como arrancable, si aparece esa opción.
+
+Paso 5. Verificar las particiones
+
+lsblk
+
+Paso 6. Formatear las particiones
+
+mkswap /dev/vda1
+
+swapon /dev/vda1
+
+mkfs.ext4 /dev/vda2
+
+mount /dev/vda2 /mnt
+
+lsblk -f
+
+Paso 7. Instalar Arch Linux
+
+pacstrap -K /mnt base linux linux-firmware vim nano networkmanager grub
+
+Paso 8. Generar el archivo fstab
+
+genfstab -U /mnt >> /mnt/etc/fstab
+
+cat /mnt/etc/fstab
+
+Paso 9. Entrar al sistema instalado
+
+arch-chroot /mnt
+
+Paso 10. Configurar la zona horaria
+
+ln -sf /usr/share/zoneinfo/America/Monterrey /etc/localtime
+
+hwclock --systohc
+
+Paso 11. Configurar el idioma
+
+nano /etc/locale.gen
+
+locale-gen
+
+echo "LANG=es_MX.UTF-8" > /etc/locale.conf
+
+Paso 12. Configurar el nombre del equipo
+
+echo "archvm" > /etc/hostname
+
+nano /etc/hosts (Agrega 127.0.1.1 archvm.localdomain archvm)
+
+Paso 13. Configurar la contraseña de root
+
+passwd
+
+Paso 14. Activar la red
+
+systemctl enable NetworkManager
+
+Paso 15. Instalar GRUB para BIOS Legacy
+
+grub-install --target=i386-pc /dev/vda
+
+grub-mkconfig -o /boot/grub/grub.cfg
+
+Paso 16. Crear tu usuario
+
+pacman -S sudo
+
+useradd -m -G wheel -s /bin/bash usuario
+
+passwd usuario
+
+EDITOR=nano visudo
+
+Busca esta linea: # %wheel ALL=(ALL:ALL) ALL
+
+Elimina el símbolo #
+
+Paso 17. Preparar el primer arranque
+
+exit
+
+umount -R /mnt
+
+poweroff
+
+Paso 18. Retirar el ISO de instalación
+En virt-manager, con la máquina virtual apagada:
+1. Abre los detalles de la máquina virtual.
+2. Selecciona el dispositivo CD-ROM o SATA CD-ROM que contiene el ISO de Arch Linux.
+3. Desconecta o expulsa el ISO.
+4. Verifica que el disco virtual de 40 GB siga conectado.
+5. Inicia la máquina virtual.
+Deberías ver el menú de GRUB y después la pantalla de inicio de sesión de Arch Linux.
+
+Paso 19. Iniciar sesión
+
+Escribe tu usuario y contraseña.
